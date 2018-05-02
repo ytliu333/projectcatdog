@@ -1,0 +1,162 @@
+#pip install tensorflow
+#pip install tflearn
+#pip install tqdm
+#import all necessary packages, including for text and images.
+#so be able to read images from text files.
+import numpy as np
+import matplotlib.pyplot as plt 
+import tensorflow as tf
+import tflearn
+import tensorflow as tf
+from PIL import Image
+import glob
+import os     
+import random 
+from tflearn.data_utils import image_preloader
+import math
+
+#image downloaded from Kaggle, due to the sizes are big and unable to use AWS
+#adjusted the numbers of images, train/test from one folder that mixed dogs and cats
+#generate txt files for train test and validate.
+#ensure to shuffle data 
+image_storage = '/Users/kelly/Desktop/CatDog/train'
+train_img = '/Users/kelly/Desktop/CatDog/train_data.txt'
+test_img = '/Users/kelly/Desktop/CatDog/test_data.txt'
+validating = '/Users/kelly/Desktop/CatDog/validation_data.txt'
+
+train_percentage=0.5
+test_percentage=0.3
+validation_percentage= 1 - train_percentage - test_percentage
+
+img_total_num=len(os.listdir(image_storage))
+shuffled_img = os.listdir(image_storage)
+random.shuffle(shuffled_img)
+
+#create text files for train test and validate images with 0 as cat, 1 as dog
+#x train y train, reshape file so that it won't overload and crash computer
+# larger the clearer as long as not slowing down the process
+def manageData(files):
+    for i in files:
+        if i[0:3] == 'dog':
+            pic.write(image_storage + '/'+ i + ' 1\n')
+        elif i[0:3] == 'cat':
+            pic.write(image_storage + '/'+ i + ' 0\n')
+    pic.close()
+
+
+pic = open(train_img, 'w')
+train_files=shuffled_img[0: int(train_percentage*img_total_num)]
+manageData(train_files)
+X_train, Y_train = image_preloader(train_img, image_shape=(64,64),mode='file', categorical_labels=True,normalize=True)
+
+pic = open(test_img, 'w')
+test_files=shuffled_img[int(math.ceil(train_percentage*img_total_num)):int(math.ceil((train_percentage+test_percentage)*img_total_num))]
+manageData(test_files)
+X_test, Y_test = image_preloader(test_img, image_shape=(64,64),mode='file', categorical_labels=True,normalize=True)
+
+pic = open(validating, 'w')
+valid_files=shuffled_img[int(math.ceil((train_percentage+test_percentage)*img_total_num)):img_total_num]
+manageData(valid_files)
+X_val, Y_val = image_preloader(validating, image_shape=(64,64),mode='file', categorical_labels=True,normalize=True)
+
+#get the shape of image, label and class, plot random images
+print (len(X_train))
+print (len(X_test))
+print (len(X_val))
+print (X_train[1].shape)
+print (Y_train[1].shape,len(Y_train[1]))
+
+plt.imshow(X_train[1])
+plt.title(Y_train[1])
+plt.show()
+
+#input image and class
+input_image=tf.placeholder(tf.float32,shape=[None,64,64,3] , name='input_image') 
+input_class=tf.placeholder(tf.float32,shape=[None, 2] , name='input_class')
+
+#sources: http://tflearn.org/layers/conv/
+#https://medium.com/@curiousily/tensorflow-for-hackers-part-iii-convolutional-neural-networks-c077618e590b
+#https://pythonprogramming.net/convolutional-neural-network-kats-vs-dogs-machine-learning-tutorial/
+#http://blog.bitfusion.io/2016/08/31/training-a-bird-classifier-with-tensorflow-and-tflearn
+def convolutional_layer(layer, nb_filter, name):
+    convolutionalLayer=tflearn.layers.conv.conv_2d(layer, nb_filter=32, filter_size=nb_filter, strides=[1,1,1,1], padding='same', activation='relu', regularizer="L2", name=name)
+    return convolutionalLayer
+
+convolutional_layer1 = convolutional_layer(input_image, 32, 'conv_layer_1')
+out_layer1=tflearn.layers.conv.max_pool_2d(convolutional_layer1, 2)
+convolutional_layer2 = convolutional_layer(out_layer1, 64, 'conv_layer_2')
+out_layer2=tflearn.layers.conv.max_pool_2d(convolutional_layer2, 2)
+convolutional_layer = convolutional_layer(out_layer2, 64, 'conv_layer_2')
+out_layer3=tflearn.layers.conv.max_pool_2d(convolutional_layer, 2)
+
+def fully_connected_layer(layer, num, activation, name):
+    fully_connected_layer = tflearn.layers.core.fully_connected(layer, num, activation=activation , name=name)
+    return fully_connected_layer
+
+fully_connected_layer1 = fully_connected_layer(out_layer3, 1024, 'relu', 'FCL-1')
+dropout1 = tflearn.layers.core.dropout(fully_connected_layer1, 0.8)
+fully_connected_layer2 = fully_connected_layer(dropout1, 1024, 'relu', 'FCL-2')
+dropout2 = tflearn.layers.core.dropout(fully_connected_layer2, 0.8)
+predict_y = fully_connected_layer(dropout2, 2, 'softmax', 'output')
+
+loss_function = tf.reduce_mean(-tf.reduce_sum(input_class * tf.log(predict_y+np.exp(-10)), reduction_indices=[1]))
+train_step = tf.train.AdamOptimizer(1e-4).minimize(loss_function)
+precision = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(predict_y,1), tf.argmax(input_class,1)), tf.float32))
+session = tf.InteractiveSession()
+init = tf.global_variables_initializer()
+session.run(init)
+saver = tf.train.Saver()
+save_path="/Users/kelly/Desktop/CatDog/mark3.ckpt"
+
+#more iterations is better, but due to my computer's low processing speed, I had it at 3. 
+#simple size can be higher too, but again mine is smaller.
+epoch=3
+batch_size=20 
+no_itr_per_epoch=len(X_train)//batch_size
+no_itr_per_epoch
+n_test=len(X_test)
+n_val=len(X_val) 
+
+for iteration in range(iteration):
+    print("Iteration no: {} ".format(iteration))    
+    batch_before=0
+    for i in range(iterate_speed):
+        batch_later=batch_before+batch_cap
+        x_input=X_train[batch_before:batch_later]
+        x_images=np.reshape(x_input,[batch_cap,64,64,3])       
+        y_input=Y_train[batch_before:batch_later]
+        y_label=np.reshape(y_input,[batch_cap,2])
+        batch_before=batch_before+batch_cap
+        
+        _,loss=session.run([train_step, loss_function], feed_dict={input_image: x_images,input_class: y_label})
+        if i % 100==0 :
+            print ("Training loss : {}" .format(loss))
+                   
+    x_test_images=np.reshape(X_test[0:n_test],[n_test,64,64,3])
+    y_test_labels=np.reshape(Y_test[0:n_test],[n_test,2])
+    Accuracy_test=session.run(precision, feed_dict={input_image: x_test_images, input_class: y_test_labels})
+    Accuracy_test=round(Accuracy_test*100,2)
+    
+    x_val_images=np.reshape(X_val[0:n_val],[n_val,64,64,3])
+    y_val_labels=np.reshape(Y_val[0:n_val],[n_val,2])
+    Accuracy_val=session.run(precision, feed_dict={input_image: x_val_images, input_class: y_val_labels})    
+    Accuracy_val=round(Accuracy_val*100,2)
+    print("Accuracy ::  Test_set {} % , Validation_set {} % " .format(Accuracy_test,Accuracy_val))
+    
+    
+    
+Bayli3=Image.open('/Users/kelly/Desktop/CatDog/test1/bayli3.jpg')
+img=Bayli3.resize((64, 64), Image.ANTIALIAS) #resize the image
+img = np.array(img)
+img=img/np.max(img).astype(float) 
+img=np.reshape(img, [1,64,64,3])
+img
+plt.imshow(img[0,:,:,:])
+plt.show()
+
+a= sess.run(y_predicted, feed_dict={x: img})
+b= np.argmax(a)
+if b==0:
+    print ("Bayli is a cat")
+else :
+    print ("Bayli is a dog")
